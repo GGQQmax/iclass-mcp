@@ -1,0 +1,10 @@
+venv/
+build/
+dist/
+temp/
+.env
+.vs
+test*
+*.pyc
+*.spec
+*.ttf

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "iclass": {
+      "command": "/home/ggqqmax/git/iclass-mcp/.venv/bin/python",
+      "args": [
+        "iclass_mcp_server.py"
+      ],
+      "cwd": "/home/ggqqmax/git/iclass-mcp"
+    }
+  }
+}
