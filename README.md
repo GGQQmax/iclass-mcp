@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server for the Tamkang University (TKU) **iClass** (TronClass) learning platform.
 
-Connect AI assistants (Claude Desktop, OpenAI Codex / ChatGPT Desktop, Cursor, and other MCP clients) directly to your iClass account to check pending assignments, track deadlines, browse courses and announcements, interact with forum discussions, manage files, and submit homework.
+Connect AI assistants (**Antigravity**, Claude Desktop, OpenAI Codex / ChatGPT Desktop, Cursor, and other MCP clients) directly to your iClass account to check pending assignments, track deadlines, browse courses and announcements, interact with forum discussions, manage files, and submit homework.
 
 ---
 
@@ -57,6 +57,24 @@ pip install -r requirements.txt
 ---
 
 ## Client Configuration
+
+### Antigravity
+
+Add the server definition to `~/.gemini/config/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "iclass": {
+      "command": "/absolute/path/to/iclass-mcp/.venv/bin/python",
+      "args": ["/absolute/path/to/iclass-mcp/iclass_mcp_server.py"],
+      "cwd": "/absolute/path/to/iclass-mcp"
+    }
+  }
+}
+```
+
+You can also inspect and manage active MCP servers in the Antigravity UI under **Additional Options (...) > MCP Servers**.
 
 ### Codex / ChatGPT Desktop
 
