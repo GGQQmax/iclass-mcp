@@ -3,6 +3,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 import urllib.parse
 import json
+from typing import Any, Dict, List, Optional, Union
 
 class TronClassCourseAPI:
     def __init__(self, session):
@@ -88,3 +89,106 @@ class TronClassCourseAPI:
             return response.json()
         except requests.exceptions.RequestException as e:
             return {"error": f"Error fetching todos: {str(e)}"}
+
+    async def create_syllabus(
+        self,
+        module_id: Union[int, str] = None,
+        date_str: Optional[str] = None,
+        teaching_type: str = "face_to_face",
+        summary: str = "",
+        objective: str = "",
+        comments: str = "",
+        data: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Create a syllabus entry for a module.
+        POST https://iclass.tku.edu.tw/api/syllabus
+        """
+        url = "https://iclass.tku.edu.tw/api/syllabus"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json;charset=utf-8",
+            "Origin": "https://iclass.tku.edu.tw",
+        }
+        payload: Dict[str, Any] = {
+            "module_id": str(module_id) if module_id is not None else "",
+            "teaching_type": teaching_type,
+            "summary": summary,
+            "objective": objective,
+            "comments": comments,
+            "date": date_str if date_str is not None else date.today().isoformat(),
+        }
+        if data:
+            payload.update(data)
+        if kwargs:
+            payload.update(kwargs)
+
+        try:
+            response = self.session.post(url, headers=headers, json=payload)
+            if response.ok:
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True, "status_code": response.status_code}
+            else:
+                try:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.json()}
+                except ValueError:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.text}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error creating syllabus: {str(e)}"}
+
+    async def delete_module(
+        self,
+        module_id: Union[int, str],
+        delete_related_activity: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Delete a course module.
+        DELETE https://iclass.tku.edu.tw/api/module/{module_id}?delete_related_activity=true
+        """
+        flag_str = "true" if delete_related_activity else "false"
+        url = f"https://iclass.tku.edu.tw/api/module/{module_id}?delete_related_activity={flag_str}"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://iclass.tku.edu.tw",
+        }
+        try:
+            response = self.session.delete(url, headers=headers)
+            if response.ok:
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True, "status_code": response.status_code}
+            else:
+                try:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.json()}
+                except ValueError:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.text}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error deleting module: {str(e)}"}
+
+    async def get_course_access_code(self, course_id: int) -> Dict[str, Any]:
+        """
+        Get invitation access code for a course.
+        GET https://iclass.tku.edu.tw/api/course/{course_id}/access_code
+        """
+        url = f"https://iclass.tku.edu.tw/api/course/{course_id}/access_code"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+        }
+        try:
+            response = self.session.get(url, headers=headers)
+            if response.ok:
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True, "status_code": response.status_code}
+            else:
+                try:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.json()}
+                except ValueError:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.text}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error fetching course access code: {str(e)}"}

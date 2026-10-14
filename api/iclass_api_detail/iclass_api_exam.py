@@ -423,4 +423,79 @@ class TronClassExamAPI:
             return {"error": f"Failed with status {response.status_code}", "details": response.text}
         except requests.exceptions.RequestException as e:
             return {"error": f"Error submitting exam: {str(e)}"}
-    
+
+    async def create_classroom_exam(self, course_id: int, data: dict = None, **kwargs) -> Dict[str, Any]:
+        """
+        Create a classroom exam / in-class quiz for a course.
+        POST https://iclass.tku.edu.tw/api/courses/{course_id}/classroom-exams
+        """
+        url = f"https://iclass.tku.edu.tw/api/courses/{course_id}/classroom-exams"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json;charset=utf-8",
+            "Origin": "https://iclass.tku.edu.tw",
+            "Referer": f"https://iclass.tku.edu.tw/course/{course_id}/content",
+        }
+        payload = {
+            "type": "classroom",
+            "score_percentage": "0",
+            "score_item_group_id": 0,
+            "score_item_scored": False,
+            "publishStatusClass": "publish-type-button unpublished",
+            "publishTypeText": "未發布",
+            "isPublishScheduled": False,
+            "using_phase": "unspecified",
+            "teaching_model": "online",
+            "subjects_rule": {"public": True, "subject_by_subject_control": False},
+            "isQuizPublic": True,
+            "isQuizControlBySubject": False,
+            "announce_answer_status": "immediate_announce",
+        }
+        if data:
+            payload.update(data)
+        if kwargs:
+            payload.update(kwargs)
+
+        try:
+            response = self.session.post(url, headers=headers, json=payload)
+            if response.ok:
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True, "status_code": response.status_code}
+            else:
+                try:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.json()}
+                except ValueError:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.text}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error creating classroom exam: {str(e)}"}
+
+    async def delete_classroom_exam(self, classroom_id: int) -> Dict[str, Any]:
+        """
+        Delete a classroom exam / quiz by classroom ID.
+        DELETE https://iclass.tku.edu.tw/api/classrooms/{classroom_id}
+        """
+        url = f"https://iclass.tku.edu.tw/api/classrooms/{classroom_id}"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://iclass.tku.edu.tw",
+        }
+        try:
+            response = self.session.delete(url, headers=headers)
+            if response.ok:
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True, "status_code": response.status_code}
+            else:
+                try:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.json()}
+                except ValueError:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.text}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error deleting classroom exam: {str(e)}"}
+
+    async def delete_classroom(self, classroom_id: int) -> Dict[str, Any]:
+        """Alias for delete_classroom_exam."""
+        return await self.delete_classroom_exam(classroom_id)

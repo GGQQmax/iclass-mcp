@@ -99,6 +99,30 @@ class TronClassAPI:
         self.activity_api = TronClassActivityAPI(self.session)
         return await self.activity_api.read_all_activities(course_id)
 
+    async def create_activity(self, course_id: int, data: dict = None, **kwargs):
+        self.activity_api = TronClassActivityAPI(self.session)
+        return await self.activity_api.create_activity(course_id, data, **kwargs)
+
+    async def publish_activities(self, course_id: int, published: bool = True, activity_ids: list = None, exam_ids: list = None):
+        self.activity_api = TronClassActivityAPI(self.session)
+        return await self.activity_api.publish_activities(course_id, published, activity_ids, exam_ids)
+
+    async def delete_activity(self, activity_id: int, course_id: int = None):
+        self.activity_api = TronClassActivityAPI(self.session)
+        return await self.activity_api.delete_activity(activity_id, course_id)
+
+    async def create_syllabus(self, module_id=None, date_str: str = None, teaching_type: str = "face_to_face", summary: str = "", objective: str = "", comments: str = "", data: dict = None, **kwargs):
+        self.course_api = TronClassCourseAPI(self.session)
+        return await self.course_api.create_syllabus(module_id, date_str, teaching_type, summary, objective, comments, data, **kwargs)
+
+    async def delete_module(self, module_id, delete_related_activity: bool = True):
+        self.course_api = TronClassCourseAPI(self.session)
+        return await self.course_api.delete_module(module_id, delete_related_activity)
+
+    async def get_course_access_code(self, course_id: int):
+        self.course_api = TronClassCourseAPI(self.session)
+        return await self.course_api.get_course_access_code(course_id)
+
     # ==========================================
     # Exam API interface methods
     # ==========================================
@@ -158,3 +182,11 @@ class TronClassAPI:
     async def submit_exam(self, exam_id: int, exam_paper_instance_id: int, exam_submission_id: int, subjects: list, progress: dict = None, reason: str = "user"):
         self.exam_api = TronClassExamAPI(self.session)
         return await self.exam_api.submit_exam(exam_id, exam_paper_instance_id, exam_submission_id, subjects, progress, reason)
+
+    async def create_classroom_exam(self, course_id: int, data: dict = None, **kwargs):
+        self.exam_api = TronClassExamAPI(self.session)
+        return await self.exam_api.create_classroom_exam(course_id, data, **kwargs)
+
+    async def delete_classroom_exam(self, classroom_id: int):
+        self.exam_api = TronClassExamAPI(self.session)
+        return await self.exam_api.delete_classroom_exam(classroom_id)

@@ -396,6 +396,121 @@ async def submit_exam(
         return {"error": f"Failed to submit exam: {str(e)}"}
 
 
+@mcp.tool(description="Create a new course activity (material, web link, online video, etc.).")
+async def create_activity(
+    course_id: int,
+    data: Dict[str, Any],
+) -> Any:
+    """Create a new activity in a course."""
+    try:
+        api = get_api()
+        return await api.create_activity(course_id, data=data)
+    except Exception as e:
+        return {"error": f"Failed to create activity: {str(e)}"}
+
+
+@mcp.tool(description="Publish or unpublish course activities and exams.")
+async def publish_activities(
+    course_id: int,
+    published: bool = True,
+    activity_ids: Optional[List[int]] = None,
+    exam_ids: Optional[List[int]] = None,
+) -> Any:
+    """Publish or unpublish activities/exams in a course."""
+    try:
+        api = get_api()
+        return await api.publish_activities(
+            course_id=course_id,
+            published=published,
+            activity_ids=activity_ids or [],
+            exam_ids=exam_ids or [],
+        )
+    except Exception as e:
+        return {"error": f"Failed to publish activities: {str(e)}"}
+
+
+@mcp.tool(description="Delete a course activity by ID.")
+async def delete_activity(activity_id: int, course_id: Optional[int] = None) -> Any:
+    """Delete an activity."""
+    try:
+        api = get_api()
+        return await api.delete_activity(activity_id, course_id=course_id)
+    except Exception as e:
+        return {"error": f"Failed to delete activity: {str(e)}"}
+
+
+@mcp.tool(description="Create a classroom exam / in-class quiz for a course.")
+async def create_classroom_exam(
+    course_id: int,
+    data: Optional[Dict[str, Any]] = None,
+) -> Any:
+    """Create a classroom exam for a course."""
+    try:
+        api = get_api()
+        return await api.create_classroom_exam(course_id, data=data)
+    except Exception as e:
+        return {"error": f"Failed to create classroom exam: {str(e)}"}
+
+
+@mcp.tool(description="Delete a classroom exam / in-class quiz by classroom ID.")
+async def delete_classroom_exam(classroom_id: int) -> Any:
+    """Delete a classroom exam."""
+    try:
+        api = get_api()
+        return await api.delete_classroom_exam(classroom_id)
+    except Exception as e:
+        return {"error": f"Failed to delete classroom exam: {str(e)}"}
+
+
+@mcp.tool(description="Create a syllabus entry for a course module.")
+async def create_syllabus(
+    module_id: Optional[Any] = None,
+    date_str: Optional[str] = None,
+    teaching_type: str = "face_to_face",
+    summary: str = "",
+    objective: str = "",
+    comments: str = "",
+    data: Optional[Dict[str, Any]] = None,
+) -> Any:
+    """Create a syllabus entry for a course module."""
+    try:
+        api = get_api()
+        return await api.create_syllabus(
+            module_id=module_id,
+            date_str=date_str,
+            teaching_type=teaching_type,
+            summary=summary,
+            objective=objective,
+            comments=comments,
+            data=data,
+        )
+    except Exception as e:
+        return {"error": f"Failed to create syllabus: {str(e)}"}
+
+
+@mcp.tool(description="Delete a course module.")
+async def delete_module(
+    module_id: Any,
+    delete_related_activity: bool = True,
+) -> Any:
+    """Delete a course module."""
+    try:
+        api = get_api()
+        return await api.delete_module(module_id, delete_related_activity=delete_related_activity)
+    except Exception as e:
+        return {"error": f"Failed to delete module: {str(e)}"}
+
+
+@mcp.tool(description="Get the invite access code for a course.")
+async def get_course_access_code(course_id: int) -> Any:
+    """Fetch the course invitation access code."""
+    try:
+        api = get_api()
+        return await api.get_course_access_code(course_id)
+    except Exception as e:
+        return {"error": f"Failed to get course access code: {str(e)}"}
+
+
 def main():
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     mcp.run(transport=transport)

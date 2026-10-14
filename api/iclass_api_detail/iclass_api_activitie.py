@@ -287,3 +287,96 @@ class TronClassActivityAPI:
                     read_results.append({"activity_id": activity_id, "error": str(e)})
 
         return {"read_results": read_results}
+
+    async def create_activity(self, course_id: int, data: dict = None, **kwargs):
+        """
+        Create a new course activity (e.g. material, web_link, online_video).
+        POST https://iclass.tku.edu.tw/api/courses/{course_id}/activities
+        """
+        url = f"https://iclass.tku.edu.tw/api/courses/{course_id}/activities"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json;charset=utf-8",
+            "Origin": "https://iclass.tku.edu.tw",
+            "Referer": f"https://iclass.tku.edu.tw/course/{course_id}/content",
+        }
+        payload = {}
+        if data:
+            payload.update(data)
+        if kwargs:
+            payload.update(kwargs)
+
+        try:
+            response = self.session.post(url, headers=headers, json=payload)
+            if response.ok:
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True, "status_code": response.status_code}
+            else:
+                try:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.json()}
+                except ValueError:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.text}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error creating activity: {str(e)}"}
+
+    async def publish_activities(self, course_id: int, published: bool = True, activity_ids: list = None, exam_ids: list = None):
+        """
+        Publish or unpublish course activities and exams.
+        POST https://iclass.tku.edu.tw/api/courses/{course_id}/publish-activities
+        """
+        url = f"https://iclass.tku.edu.tw/api/courses/{course_id}/publish-activities"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json;charset=utf-8",
+            "Origin": "https://iclass.tku.edu.tw",
+            "Referer": f"https://iclass.tku.edu.tw/course/{course_id}/content",
+        }
+        payload = {
+            "published": published,
+            "activity_ids": activity_ids or [],
+            "exam_ids": exam_ids or [],
+        }
+        try:
+            response = self.session.post(url, headers=headers, json=payload)
+            if response.ok:
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True, "status_code": response.status_code}
+            else:
+                try:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.json()}
+                except ValueError:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.text}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error publishing activities: {str(e)}"}
+
+    async def delete_activity(self, activity_id: int, course_id: int = None):
+        """
+        Delete an activity by its ID.
+        DELETE https://iclass.tku.edu.tw/api/activities/{activity_id}
+        """
+        url = f"https://iclass.tku.edu.tw/api/activities/{activity_id}"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://iclass.tku.edu.tw",
+        }
+        if course_id:
+            headers["Referer"] = f"https://iclass.tku.edu.tw/course/{course_id}/content"
+
+        try:
+            response = self.session.delete(url, headers=headers)
+            if response.ok:
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True, "status_code": response.status_code}
+            else:
+                try:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.json()}
+                except ValueError:
+                    return {"error": f"Failed with status {response.status_code}", "details": response.text}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error deleting activity: {str(e)}"}
