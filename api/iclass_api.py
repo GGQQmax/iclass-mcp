@@ -75,6 +75,31 @@ class TronClassAPI:
         self.topic_api = TronClassTopicAPI(self.session)
         return await self.topic_api.get_topic_categories(course_id)
 
+    async def get_category_topics(
+        self,
+        category_id: int,
+        keyword: str = None,
+        sort_by: str = "lastUpdatedDate",
+        reverse: bool = True,
+        conditions: dict = None,
+        fields: str = None,
+        page: int = 1,
+        page_size: int = 10,
+        course_id: int = None,
+    ):
+        self.topic_api = TronClassTopicAPI(self.session)
+        return await self.topic_api.get_category_topics(
+            category_id=category_id,
+            keyword=keyword,
+            sort_by=sort_by,
+            reverse=reverse,
+            conditions=conditions,
+            fields=fields,
+            page=page,
+            page_size=page_size,
+            course_id=course_id,
+        )
+
     async def get_topic(self, topic_id: int, course_id: int = None):
         self.topic_api = TronClassTopicAPI(self.session)
         return await self.topic_api.get_topic(topic_id, course_id)

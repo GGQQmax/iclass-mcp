@@ -167,6 +167,48 @@ async def get_topic_categories(course_id: int) -> Any:
         return {"error": f"Failed to get topic categories: {str(e)}"}
 
 
+@mcp.tool(description="Get discussion topics in a forum category, with optional keyword search, sorting, and pagination.")
+async def get_category_topics(
+    category_id: int,
+    keyword: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort_by: str = "lastUpdatedDate",
+    reverse: bool = True,
+    course_id: Optional[int] = None,
+    conditions: Optional[Dict[str, Any]] = None,
+    fields: Optional[str] = None,
+) -> Any:
+    """
+    Fetch topics in a forum category.
+
+    :param category_id: Category ID (e.g., from get_topic_categories).
+    :param keyword: Optional keyword to filter/search topics.
+    :param page: Page number (default: 1).
+    :param page_size: Number of items per page (default: 10).
+    :param sort_by: Field to sort by, e.g. "lastUpdatedDate" (default: "lastUpdatedDate").
+    :param reverse: Whether to sort descending (default: True).
+    :param course_id: Optional course ID for referrer header.
+    :param conditions: Optional custom conditions dict to override keyword/sort_by.
+    :param fields: Optional custom fields projection string.
+    """
+    try:
+        api = get_api()
+        return await api.get_category_topics(
+            category_id=category_id,
+            keyword=keyword,
+            sort_by=sort_by,
+            reverse=reverse,
+            conditions=conditions,
+            fields=fields,
+            page=page,
+            page_size=page_size,
+            course_id=course_id,
+        )
+    except Exception as e:
+        return {"error": f"Failed to get category topics: {str(e)}"}
+
+
 @mcp.tool(description="Get details and replies for a specific discussion topic.")
 async def get_topic(topic_id: int, course_id: Optional[int] = None) -> Any:
     """

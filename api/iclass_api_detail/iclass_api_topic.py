@@ -1,4 +1,7 @@
+import json
 import requests
+
+
 class TronClassTopicAPI:
     def __init__(self, session):
         self.session = session
@@ -19,6 +22,69 @@ class TronClassTopicAPI:
             return response.json()
         except requests.exceptions.RequestException as e:
             return {"error": f"Error fetching topic categories: {str(e)}"}
+
+    async def get_category_topics(
+        self,
+        category_id: int,
+        keyword: str = None,
+        sort_by: str = "lastUpdatedDate",
+        reverse: bool = True,
+        conditions: dict = None,
+        fields: str = None,
+        page: int = 1,
+        page_size: int = 10,
+        course_id: int = None,
+    ):
+        """
+        Get discussion topics for a forum category.
+        GET https://iclass.tku.edu.tw/api/forum/categories/{category_id}
+        """
+        url = f"https://iclass.tku.edu.tw/api/forum/categories/{category_id}"
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+        }
+        if course_id:
+            headers["Referer"] = f"https://iclass.tku.edu.tw/course/{course_id}/forum"
+
+        if conditions is None:
+            cond = {}
+            if keyword:
+                cond["keyword"] = keyword
+            if sort_by:
+                cond["topic_sort_by"] = {
+                    "predicate": sort_by,
+                    "reverse": reverse,
+                }
+            conditions = cond
+
+        if isinstance(conditions, (dict, list)):
+            conditions_str = json.dumps(conditions)
+        elif conditions is not None:
+            conditions_str = str(conditions)
+        else:
+            conditions_str = None
+
+        default_fields = (
+            "id,title,created_by(id,name,nickname,comment),group_id,created_at,updated_at,"
+            "content,read_replies(reply_id),reply_count,unread_reply_count,like_count,"
+            "current_user_read,current_user_liked,in_common_category,enrollments(roles,aliases),"
+            "has_matched_replies,uploads"
+        )
+
+        params = {
+            "page": page,
+            "pageSize": page_size,
+            "fields": fields if fields is not None else default_fields,
+        }
+        if conditions_str:
+            params["conditions"] = conditions_str
+
+        try:
+            response = self.session.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error fetching category topics: {str(e)}"}
     
     async def get_topic(self, topic_id: int, course_id: int = None):
         """

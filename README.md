@@ -11,7 +11,7 @@ Connect AI assistants (**Antigravity**, Claude Desktop, OpenAI Codex / ChatGPT D
 - 📅 **Todos & Deadlines**: Fetch upcoming and pending homework, quizzes, and exams with due dates.
 - 📚 **Courses & Syllabi**: View ongoing enrolled courses, syllabus structures, and detailed learning activities.
 - 📢 **Announcements**: Read course-level and campus-wide bulletins and notices.
-- 💬 **Discussion Forums**: Browse categories, read topics/replies, create new discussion threads, post replies, and like topics.
+- 💬 **Discussion Forums**: Browse categories, search/list category topics, read topics/replies, create new discussion threads, post replies, and like topics.
 - 📁 **Cloud Files**: Access your personal iClass cloud storage, upload local files, and download course materials.
 - 📝 **Assignments & Progress**: Mark learning materials as read and submit homework directly.
 
@@ -132,6 +132,7 @@ Add the server to your `claude_desktop_config.json` (located at `~/.config/Claud
 | `read_activity` | Mark an activity or resource upload as read | `activity_id`, `upload_id`, `course_id` |
 | `get_enrollments` | List enrolled members/students for a course | `course_id` |
 | `get_topic_categories` | Get discussion forum categories for a course | `course_id` |
+| `get_category_topics` | Get and search discussion topics in a forum category | `category_id`, `keyword`, `page`, `page_size`, `sort_by`, `reverse`, `course_id` |
 | `get_topic` | Get details and replies for a discussion topic | `topic_id`, `course_id` |
 | `reply_topic` | Post a reply to a discussion topic | `topic_id`, `content`, `uploads`, `course_id` |
 | `create_topic` | Create a new discussion thread | `category_id`, `title`, `content`, `uploads`, `course_id` |
