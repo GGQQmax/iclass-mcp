@@ -27,8 +27,8 @@ Connect AI assistants (**Antigravity**, Claude Desktop, OpenAI Codex / ChatGPT D
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/GGQQmax/iclass-mcp.git
-cd iclass-mcp
+git clone --recurse-submodules https://github.com/GGQQmax/iclass-cli.git
+cd iclass-cli
 ```
 
 ### 2. Configure Environment Variables
