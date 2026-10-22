@@ -27,11 +27,34 @@ Connect AI assistants (**Antigravity**, Claude Desktop, OpenAI Codex / ChatGPT D
 ### 1. Clone the repository
 
 ```bash
-git clone --recurse-submodules https://github.com/GGQQmax/iclass-cli.git
-cd iclass-cli
+git clone --recurse-submodules https://github.com/GGQQmax/iclass-mcp.git
+cd iclass-mcp
 ```
 
-### 2. Configure Environment Variables
+### 2. Quick Install (Automated)
+
+Run the installer for your operating system to automatically initialize git submodules, set up `.venv`, install requirements, configure `.env`, and generate client settings:
+
+- **Linux & macOS**:
+  ```bash
+  chmod +x install.sh
+  ./install.sh
+  ```
+
+- **Windows (PowerShell)**:
+  ```powershell
+  .\install.ps1
+  ```
+
+- **Windows (Command Prompt / Double Click)**:
+  ```cmd
+  install.bat
+  ```
+
+<details>
+<summary>Manual Installation Steps</summary>
+
+#### Step A: Configure Environment Variables
 
 Copy the template file to `.env`:
 
@@ -46,13 +69,16 @@ USERNAMEID="YOUR_STUDENT_ID"
 PASSWORD="YOUR_SSO_PASSWORD"
 ```
 
-### 3. Create Virtual Environment & Install Dependencies
+#### Step B: Initialize Submodules, Create Virtual Environment & Install Dependencies
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+git submodule update --init --recursive
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
+
+</details>
 
 ---
 
