@@ -2,9 +2,10 @@ venv/
 build/
 dist/
 Temp/
+temp/
 .env
 .vs
-test*
+test.txt
 *.pyc
 *.spec
 *.ttf

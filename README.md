@@ -14,6 +14,7 @@ Connect AI assistants (**Antigravity**, Claude Desktop, OpenAI Codex / ChatGPT D
 - 💬 **Discussion Forums**: Browse categories, search/list category topics, read topics/replies, create new discussion threads, post replies, and like topics.
 - 📁 **Cloud Files**: Access your personal iClass cloud storage, upload local files, and download course materials.
 - 📝 **Assignments & Progress**: Mark learning materials as read and submit homework directly.
+- 🎬 **Video-to-Text Notes (Optional)**: Convert lecture videos (YouTube or iClass activities/uploads) into compact, timestamped notes with slide change detection, OCR, and speech transcription aligned by page.
 
 ---
 
@@ -38,12 +39,14 @@ Run the installer for your operating system to automatically initialize git subm
 - **Linux & macOS**:
   ```bash
   chmod +x install.sh
-  ./install.sh
+  ./install.sh                # Base installation (interactive)
+  ./install.sh --with-video   # Include Video-to-Text pipeline
   ```
 
 - **Windows (PowerShell)**:
   ```powershell
-  .\install.ps1
+  .\install.ps1               # Base installation (interactive)
+  .\install.ps1 -WithVideo    # Include Video-to-Text pipeline
   ```
 
 - **Windows (Command Prompt / Double Click)**:
@@ -167,6 +170,9 @@ Add the server to your `claude_desktop_config.json` (located at `~/.config/Claud
 | `upload_file` | Upload a local file to iClass personal drive | `file_path` |
 | `download_file_by_reference` | Download a file by reference ID to `~/Downloads` | `reference_id` |
 | `submit_homework` | Submit homework assignment with uploaded file IDs | `activity_id`, `upload_ids` |
+| `process_video` | Process a lecture video (YouTube or iClass) into notes | `source`, `source_type`, `course_id`, `activity_id`, `language` |
+| `get_video_job` | Check progress/status of a video-to-text job | `job_id` |
+| `get_video_notes` | Retrieve lecture notes outline, specific page, or search passages | `job_id`, `page`, `query`, `max_chars` |
 
 ---
 

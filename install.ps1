@@ -1,7 +1,8 @@
-#
-# iclass-mcp Installation Script for Windows
-# Requires PowerShell 5.1 or later
-#
+[CmdletBinding()]
+param(
+    [switch]$WithVideo,
+    [switch]$NoVideo
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -109,7 +110,7 @@ if (-not (Test-Path $VENV_PYTHON)) {
 }
 
 # 4. Install Dependencies
-Write-Info "Installing / updating dependencies..."
+Write-Info "Installing / updating base dependencies..."
 try {
     & $VENV_PIP install --upgrade pip --quiet 2>$null
 } catch {}
@@ -133,7 +134,42 @@ if ($pipFailed) {
         Write-Err "Failed to install dependencies from requirements.txt. Please check your internet connection."
     }
 }
-Write-Success "Dependencies installed successfully."
+Write-Success "Base dependencies installed successfully."
+
+# Optional Video-to-Text Pipeline
+$installVideoPipeline = $false
+if ($WithVideo) {
+    $installVideoPipeline = $true
+} elseif (-not $NoVideo) {
+    $choice = Read-Host "Install optional Video-to-Text lecture notes pipeline (extract slides, OCR, speech transcription)? (y/N)"
+    if ($choice -match "^[yY]") {
+        $installVideoPipeline = $true
+    }
+}
+
+if ($installVideoPipeline) {
+    Write-Info "Installing Video-to-Text dependencies from requirements-video.txt..."
+    try {
+        & $VENV_PIP install -r (Join-Path $ROOT_DIR "requirements-video.txt")
+        Write-Success "Video pipeline dependencies installed successfully."
+    } catch {
+        Write-Warn "Could not install all video dependencies from requirements-video.txt."
+    }
+
+    # Check external tools
+    Write-Info "Checking external system tools for video pipeline..."
+    if (Get-Command ffmpeg -ErrorAction SilentlyContinue) {
+        Write-Success "Found ffmpeg."
+    } else {
+        Write-Warn "ffmpeg not found. Please install ffmpeg (e.g. 'winget install Gyan.FFmpeg')."
+    }
+
+    if (Get-Command tesseract -ErrorAction SilentlyContinue) {
+        Write-Success "Found tesseract."
+    } else {
+        Write-Warn "tesseract not found. For slide OCR, install tesseract (e.g. 'winget install UB-Mannheim.TesseractOCR')."
+    }
+}
 
 # 5. Configure .env Credentials
 $ENV_FILE = Join-Path $ROOT_DIR ".env"

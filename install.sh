@@ -49,6 +49,32 @@ done
 ROOT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 cd "$ROOT_DIR"
 
+INSTALL_VIDEO="prompt"
+INSTALL_WHISPER="prompt"
+
+for arg in "$@"; do
+    case "$arg" in
+        --with-video|--video)
+            INSTALL_VIDEO="yes"
+            ;;
+        --no-video)
+            INSTALL_VIDEO="no"
+            ;;
+        --whisper)
+            INSTALL_VIDEO="yes"
+            INSTALL_WHISPER="yes"
+            ;;
+        --help|-h)
+            echo "Usage: ./install.sh [options]"
+            echo "Options:"
+            echo "  --with-video, --video    Install optional Video-to-Text pipeline dependencies"
+            echo "  --no-video               Skip Video-to-Text pipeline dependencies"
+            echo "  --whisper                Install video pipeline with faster-whisper STT backend"
+            exit 0
+            ;;
+    esac
+done
+
 echo -e "${BOLD}========================================${NC}"
 echo -e "${BOLD}       iclass-mcp Installer           ${NC}"
 echo -e "${BOLD}========================================${NC}"
@@ -109,7 +135,7 @@ else
 fi
 
 # 4. Install Dependencies
-info "Installing / updating dependencies..."
+info "Installing / updating base dependencies..."
 "$VENV_PIP" install --upgrade pip --quiet 2>/dev/null || true
 if ! "$VENV_PIP" install -r "$ROOT_DIR/requirements.txt" 2>/dev/null; then
     if "$VENV_PIP" install --no-index -r "$ROOT_DIR/requirements.txt" >/dev/null 2>&1; then
@@ -118,7 +144,68 @@ if ! "$VENV_PIP" install -r "$ROOT_DIR/requirements.txt" 2>/dev/null; then
         error "Failed to install dependencies from requirements.txt. Please check your internet connection."
     fi
 fi
-success "Dependencies installed successfully."
+success "Base dependencies installed successfully."
+
+# Optional Video-to-Text Pipeline
+if [ "$INSTALL_VIDEO" = "prompt" ]; then
+    if [ -t 0 ]; then
+        echo ""
+        read -r -p "Install optional Video-to-Text lecture notes pipeline (extract slides, OCR, speech transcription)? [y/N]: " USER_CHOICE_VIDEO
+        if [[ "$USER_CHOICE_VIDEO" =~ ^[Yy]$ ]]; then
+            INSTALL_VIDEO="yes"
+        else
+            INSTALL_VIDEO="no"
+        fi
+    else
+        INSTALL_VIDEO="no"
+    fi
+fi
+
+if [ "$INSTALL_VIDEO" = "yes" ]; then
+    info "Installing Video-to-Text dependencies from requirements-video.txt..."
+    if "$VENV_PIP" install -r "$ROOT_DIR/requirements-video.txt"; then
+        success "Video pipeline dependencies installed successfully."
+    else
+        warn "Could not install all video dependencies from requirements-video.txt."
+    fi
+
+    if [ "$INSTALL_WHISPER" = "prompt" ] && [ -t 0 ]; then
+        read -r -p "Install local speech-to-text backend ('faster-whisper')? [y/N]: " USER_CHOICE_WHISPER
+        if [[ "$USER_CHOICE_WHISPER" =~ ^[Yy]$ ]]; then
+            INSTALL_WHISPER="yes"
+        else
+            INSTALL_WHISPER="no"
+        fi
+    fi
+
+    if [ "$INSTALL_WHISPER" = "yes" ]; then
+        info "Installing faster-whisper..."
+        "$VENV_PIP" install "faster-whisper>=1.0.0" || warn "Failed to install faster-whisper."
+    fi
+
+    # Check external system tools
+    echo ""
+    info "Checking external system tools for video pipeline..."
+    if command -v ffmpeg >/dev/null 2>&1; then
+        success "Found ffmpeg: $(command -v ffmpeg)"
+    else
+        warn "ffmpeg is not found. Video/audio extraction requires ffmpeg."
+        echo "       Install ffmpeg via your system package manager (e.g. 'sudo dnf install ffmpeg' or 'sudo apt install ffmpeg')."
+    fi
+
+    if command -v tesseract >/dev/null 2>&1; then
+        success "Found tesseract: $(command -v tesseract)"
+        if tesseract --list-langs 2>/dev/null | grep -q "chi_tra"; then
+            success "Found Traditional Chinese OCR pack (chi_tra)."
+        else
+            warn "Traditional Chinese OCR pack (chi_tra) not found in tesseract."
+            echo "       For best slide OCR results in Chinese, install: 'sudo dnf install tesseract-langpack-chi_tra' or 'sudo apt install tesseract-ocr-chi-tra'."
+        fi
+    else
+        warn "tesseract is not found. Slide OCR requires tesseract."
+        echo "       Install tesseract via: 'sudo dnf install tesseract tesseract-langpack-chi_tra' or 'sudo apt install tesseract-ocr tesseract-ocr-chi-tra'."
+    fi
+fi
 
 # 5. Configure .env Credentials
 ENV_FILE="$ROOT_DIR/.env"

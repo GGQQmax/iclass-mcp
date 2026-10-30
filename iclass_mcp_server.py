@@ -553,6 +553,150 @@ async def get_course_access_code(course_id: int) -> Any:
         return {"error": f"Failed to get course access code: {str(e)}"}
 
 
+_job_manager: Optional[Any] = None
+
+
+def get_job_manager():
+    """Lazy initialization of VideoJobManager."""
+    global _job_manager
+    if _job_manager is None:
+        try:
+            from video_pipeline import VideoJobManager
+            _job_manager = VideoJobManager()
+        except ImportError as e:
+            raise RuntimeError(
+                f"Video pipeline module could not be imported: {str(e)}. "
+                "Install video dependencies with: pip install -r requirements-video.txt "
+                "or run ./install.sh --with-video"
+            )
+    return _job_manager
+
+
+@mcp.tool(
+    description=(
+        "Process a lecture video (YouTube URL or iClass video upload/activity) into timestamped notes with slide detection, "
+        "OCR, and speech transcription. Runs asynchronously and returns a job_id."
+    )
+)
+async def process_video(
+    source: str,
+    source_type: Optional[str] = None,
+    course_id: Optional[int] = None,
+    activity_id: Optional[int] = None,
+    language: str = "zh-TW",
+) -> Any:
+    """
+    Acquire and process a lecture video into structured slide notes and speech transcript.
+
+    :param source: Video source (YouTube URL, iClass reference ID, activity ID, or local file).
+    :param source_type: Optional explicit source type ('youtube', 'iclass_reference', 'iclass_activity', 'local_file').
+    :param course_id: Optional course ID if processing an iClass course activity.
+    :param activity_id: Optional activity ID if processing an iClass activity.
+    :param language: Language hint for speech recognition and OCR (default: 'zh-TW').
+    """
+    try:
+        from video_pipeline import check_dependencies
+        deps = check_dependencies()
+        if not deps["ffmpeg"]:
+            return {
+                "error": "ffmpeg is not installed or not in PATH. Please install ffmpeg to process videos."
+            }
+        if not deps["pillow"]:
+            return {
+                "error": (
+                    "Video pipeline dependencies are not installed. "
+                    "Run './install.sh --with-video' or 'pip install -r requirements-video.txt' to enable video features."
+                )
+            }
+
+        # For iClass sources, obtain API instance
+        api = None
+        if source_type in ("iclass_reference", "iclass_activity") or activity_id or course_id or source.isdigit():
+            try:
+                api = get_api()
+            except Exception:
+                pass
+
+        mgr = get_job_manager()
+        job = await mgr.start_job(
+            source=source,
+            source_type=source_type,
+            course_id=course_id,
+            activity_id=activity_id,
+            language=language,
+            api_instance=api,
+        )
+        return {
+            "job_id": job.job_id,
+            "status": job.status,
+            "stage": job.stage,
+            "source": job.source,
+            "message": f"Video processing initiated. Use get_video_job(job_id='{job.job_id}') to track progress.",
+        }
+    except Exception as e:
+        return {"error": f"Failed to start video processing: {str(e)}"}
+
+
+@mcp.tool(description="Check status, stage, progress, or error of a video-to-text processing job.")
+async def get_video_job(job_id: str) -> Any:
+    """
+    Get job progress and status.
+
+    :param job_id: Job identifier returned by process_video.
+    """
+    try:
+        mgr = get_job_manager()
+        job = mgr.get_job(job_id)
+        if not job:
+            return {"error": f"Job not found: {job_id}"}
+        res = {
+            "job_id": job.job_id,
+            "status": job.status,
+            "stage": job.stage,
+            "progress": f"{int(job.progress * 100)}%",
+            "source": job.source,
+            "source_type": job.source_type,
+            "title": job.title,
+            "duration_seconds": job.duration_seconds,
+            "total_pages": job.total_pages,
+        }
+        if job.error:
+            res["error"] = job.error
+        if job.artifact_notes_md:
+            res["artifact_notes_md"] = job.artifact_notes_md
+        return res
+    except Exception as e:
+        return {"error": f"Failed to get video job: {str(e)}"}
+
+
+@mcp.tool(
+    description=(
+        "Retrieve lecture notes, a specific slide page, or search passages for a completed video job. "
+        "Arguments 'page' and 'query' are mutually exclusive. Leave both empty for an outline/table of contents."
+    )
+)
+async def get_video_notes(
+    job_id: str,
+    page: Optional[int] = None,
+    query: Optional[str] = None,
+    max_chars: int = 4000,
+) -> Any:
+    """
+    Read or search lecture notes from a completed video job.
+
+    :param job_id: Job ID of the processed video.
+    :param page: Optional 1-based page number to fetch a specific slide's notes.
+    :param query: Optional keyword or topic query to search across slides and transcript segments.
+    :param max_chars: Maximum characters to return to keep context concise (default: 4000).
+    """
+    try:
+        mgr = get_job_manager()
+        return mgr.query_notes(job_id=job_id, page=page, query=query, max_chars=max_chars)
+    except Exception as e:
+        return {"error": f"Failed to get video notes: {str(e)}"}
+
+
+
 def main():
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     mcp.run(transport=transport)
