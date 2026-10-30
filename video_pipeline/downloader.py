@@ -21,10 +21,50 @@ def is_ytdlp_available() -> bool:
         return False
 
 
+def parse_iclass_url(source: str) -> Dict[str, Optional[int]]:
+    """
+    Parse an iClass URL and extract course_id, activity_id, reference_id, or upload_id.
+    """
+    res: Dict[str, Optional[int]] = {
+        "course_id": None,
+        "activity_id": None,
+        "reference_id": None,
+        "upload_id": None,
+    }
+    s = source.strip()
+
+    # course learning-activity URL: e.g. https://iclass.tku.edu.tw/course/265086/learning-activity#/2039528
+    m_course_act = re.search(r"iclass\.tku\.edu\.tw/course/(\d+)/learning-activity[#/]+(\d+)", s)
+    if m_course_act:
+        res["course_id"] = int(m_course_act.group(1))
+        res["activity_id"] = int(m_course_act.group(2))
+        return res
+
+    # activities URL: e.g. https://iclass.tku.edu.tw/activities/2039528
+    m_act = re.search(r"iclass\.tku\.edu\.tw/(?:api/)?activities/(\d+)", s)
+    if m_act:
+        res["activity_id"] = int(m_act.group(1))
+        return res
+
+    # reference blob URL
+    m_ref = re.search(r"iclass\.tku\.edu\.tw/api/uploads/reference/(\d+)", s)
+    if m_ref:
+        res["reference_id"] = int(m_ref.group(1))
+        return res
+
+    # upload blob URL
+    m_up = re.search(r"iclass\.tku\.edu\.tw/api/uploads/(\d+)", s)
+    if m_up:
+        res["upload_id"] = int(m_up.group(1))
+        return res
+
+    return res
+
+
 def infer_source_type(source: str, explicit_type: Optional[str] = None) -> str:
     """
     Infer the source type from URL or identifier.
-    Returns: 'youtube', 'iclass_reference', 'iclass_activity', 'local_file', or 'url'
+    Returns: 'youtube', 'iclass_reference', 'iclass_activity', 'iclass_upload', 'local_file', or 'url'
     """
     if explicit_type:
         return explicit_type.lower()
@@ -32,6 +72,16 @@ def infer_source_type(source: str, explicit_type: Optional[str] = None) -> str:
     source_strip = source.strip()
     if os.path.exists(source_strip):
         return "local_file"
+
+    if "iclass.tku.edu.tw" in source_strip:
+        parsed = parse_iclass_url(source_strip)
+        if parsed.get("activity_id"):
+            return "iclass_activity"
+        if parsed.get("reference_id"):
+            return "iclass_reference"
+        if parsed.get("upload_id"):
+            return "iclass_upload"
+        return "iclass_activity"
 
     if re.search(r"(youtube\.com|youtu\.be)", source_strip, re.IGNORECASE):
         return "youtube"
@@ -140,48 +190,98 @@ async def acquire_source(
     api_instance: Optional[Any] = None,
 ) -> Tuple[str, str, float, str]:
     """
-    Acquire the video from YouTube, iClass, or local file.
+    Acquire the video from YouTube, iClass (via TronClassAPI), or local file.
 
     :return: Tuple of (video_path, title, duration_seconds, resolved_source_type)
     """
     os.makedirs(work_dir, exist_ok=True)
     stype = infer_source_type(source, source_type)
 
+    # Parse iClass URL if applicable
+    parsed_meta = parse_iclass_url(source)
+    if parsed_meta.get("course_id") and course_id is None:
+        course_id = parsed_meta["course_id"]
+    if parsed_meta.get("activity_id") and activity_id is None:
+        activity_id = parsed_meta["activity_id"]
+
+    # Helper to lazily initialize TronClassAPI
+    def _ensure_api():
+        nonlocal api_instance
+        if api_instance is None:
+            try:
+                from api.auth_module import Authenticator
+                from api.iclass_api import TronClassAPI
+                auth = Authenticator()
+                session = auth.perform_auth()
+                api_instance = TronClassAPI(session)
+            except Exception as e:
+                raise RuntimeError(f"TronClass API authentication required for iClass source: {str(e)}")
+        return api_instance
+
     if activity_id is not None or stype == "iclass_activity":
         act_id = activity_id if activity_id is not None else int(source)
-        if api_instance is None:
-            raise RuntimeError("TronClass API instance required to fetch iClass activity video.")
-        
-        act_details = await api_instance.get_activitie(act_id)
+        api = _ensure_api()
+
+        act_details = await api.get_activitie(act_id)
         if isinstance(act_details, dict) and "error" in act_details:
             raise RuntimeError(f"Failed to fetch iClass activity {act_id}: {act_details['error']}")
 
         title = act_details.get("title", f"iClass Activity {act_id}")
         duration = 0.0
 
-        # Check if it's an online_video with a link
+        # Check duration from uploads
+        uploads = act_details.get("uploads") or act_details.get("upload_references") or []
+        for u in uploads:
+            if isinstance(u, dict):
+                videos = u.get("videos")
+                if isinstance(videos, list) and len(videos) > 0:
+                    for v in videos:
+                        if isinstance(v, dict) and v.get("duration"):
+                            duration = float(v["duration"])
+                            break
+                if duration <= 0 and u.get("duration"):
+                    duration = float(u["duration"])
+                if duration > 0:
+                    break
+
+        if duration <= 0 and isinstance(act_details.get("data"), dict):
+            if act_details["data"].get("duration"):
+                duration = float(act_details["data"]["duration"])
+
+        # Check if it's an online_video with an external link (e.g. YouTube)
         link = act_details.get("link")
         if not link and isinstance(act_details.get("data"), dict):
             link = act_details["data"].get("link")
-            if act_details["data"].get("duration"):
-                duration = float(act_details["data"]["duration"])
 
         if link and ("youtube.com" in link or "youtu.be" in link):
             vpath, ytitle, ydur = download_youtube_video(link, work_dir)
             return vpath, title or ytitle, duration or ydur, "youtube"
 
-        # Check for uploads with reference_id
-        uploads = act_details.get("uploads") or act_details.get("upload_references") or []
+        # Check for uploads with reference_id or upload id using iclass-py TronClassAPI
         target_ref_id = None
+        target_upload_id = None
         for u in uploads:
             if isinstance(u, dict):
-                ref_id = u.get("reference_id") or u.get("id")
+                ref_id = u.get("reference_id")
+                up_id = u.get("id") or u.get("upload_id")
                 if ref_id:
                     target_ref_id = ref_id
+                    target_upload_id = up_id
                     break
+                elif up_id:
+                    target_upload_id = up_id
 
         if target_ref_id:
-            downloaded_path = await api_instance.download(target_ref_id, downloads_dir=work_dir)
+            try:
+                downloaded_path = await api.download(target_ref_id, downloads_dir=work_dir)
+                return downloaded_path, title, duration, "iclass_activity"
+            except Exception:
+                if target_upload_id:
+                    downloaded_path = await api.myfiledownload(target_upload_id, downloads_dir=work_dir)
+                    return downloaded_path, title, duration, "iclass_activity"
+                raise
+        elif target_upload_id:
+            downloaded_path = await api.myfiledownload(target_upload_id, downloads_dir=work_dir)
             return downloaded_path, title, duration, "iclass_activity"
 
         if link:
@@ -192,13 +292,20 @@ async def acquire_source(
         raise RuntimeError(f"Could not find any downloadable video stream or link in activity {act_id}.")
 
     elif stype == "iclass_reference":
-        ref_id = int(source)
-        if api_instance is None:
-            raise RuntimeError("TronClass API instance required to download iClass reference video.")
-        downloaded_path = await api_instance.download(ref_id, downloads_dir=work_dir)
+        ref_id = parsed_meta.get("reference_id") or int(source)
+        api = _ensure_api()
+        downloaded_path = await api.download(ref_id, downloads_dir=work_dir)
         filename = os.path.basename(downloaded_path)
         title = os.path.splitext(filename)[0]
         return downloaded_path, title, 0.0, "iclass_reference"
+
+    elif stype == "iclass_upload":
+        up_id = parsed_meta.get("upload_id") or int(source)
+        api = _ensure_api()
+        downloaded_path = await api.myfiledownload(up_id, downloads_dir=work_dir)
+        filename = os.path.basename(downloaded_path)
+        title = os.path.splitext(filename)[0]
+        return downloaded_path, title, 0.0, "iclass_upload"
 
     elif stype == "youtube":
         vpath, title, duration = download_youtube_video(source, work_dir)

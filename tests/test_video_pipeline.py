@@ -114,6 +114,14 @@ class TestAudioAndDownloader(unittest.TestCase):
             "iclass_activity",
         )
         self.assertEqual(infer_source_type("https://example.com/stream.m3u8"), "url")
+        self.assertEqual(
+            infer_source_type("https://iclass.tku.edu.tw/course/265086/learning-activity#/2039528"),
+            "iclass_activity",
+        )
+        self.assertEqual(
+            infer_source_type("https://iclass.tku.edu.tw/activities/2039528"),
+            "iclass_activity",
+        )
 
 
 class TestTranscription(unittest.TestCase):
